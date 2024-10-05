@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToDo List Flask</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>ToDo List Flask</h1>
+    <form action="{{ url_for('home') }}" class="input-container" method="POST">
+        <div class="input">
+            <input type="text" placeholder="Enter Todo Name" id="input-todo" name="todo_name" required>
+            <input type="datetime-local" id="input-date" name="todo_date" required>
+            <input type="text" placeholder="Enter Todo Description" id="input-description" name="todo_description" required>
+        </div>
+        <button id="add-todo">Add ToDo</button>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+
+            const datetimeLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
+            document.getElementById('input-date').value = datetimeLocal;
+        });
+
+        function editTodo(todoId) {
+            const nameInput = document.getElementById(`todo-name-${todoId}`);
+            const dateInput = document.getElementById(`todo-date-${todoId}`);
+            const descriptionInput = document.getElementById(`todo-description-${todoId}`);
+            const editButton = document.querySelector(`#todo-${todoId} .edit-button`);
+
+            nameInput.disabled = false;
+            dateInput.disabled = false;
+            descriptionInput.disabled = false;
+
+            editButton.textContent = 'Save';
+            editButton.setAttribute('onclick', `saveEdit(${todoId})`);
+            editButton.classList.add('save-button');
+            editButton.classList.remove('edit-button');
+        }
+
+        function saveEdit(todoId) {
+            const name = document.getElementById(`todo-name-${todoId}`).value;
+            const date = document.getElementById(`todo-date-${todoId}`).value;
+            const description = document.getElementById(`todo-description-${todoId}`).value;
+
+            fetch(`/update/${todoId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, date, description })
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('ToDo item updated successfully!');
+                    location.reload(); // Reload to see updated data
+                } else {
+                    alert('Error updating ToDo item. Please try again.');
+                }
+            });
+            const editButton = document.querySelector(`#todo-${todoId} .save-button`);
+            editButton.textContent = 'Edit';
+            editButton.setAttribute('onclick', `editTodo(${todoId})`);
+            editButton.classList.remove('save-button');
+            editButton.classList.add('edit-button');
+            function toggleComplete(todoId, isChecked) {
+                fetch(`/toggle/${todoId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ checked: isChecked })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Reload to see updated data or update the UI
+                        location.reload(); // Reload trang để thấy cập nhật
+                    } else {
+                        alert('Error updating ToDo item. Please try again.');
+                    }
+                });
+            }            
+        }
+    </script>
+
+    <h2 class="todo-title">ToDos</h2>
+    <div class="todo-container">
+        <div class="todo-search">
+            <form action="{{ url_for('search_todo') }}" class="input-container" method="POST">
+                <input type="text" placeholder="Search ToDo" name="search_query" required>
+                <button type="submit" id="search-todo">Search</button>
+            </form>  
+        </div>
+    
+        {% for item in items %}
+        <div class="todo" id="todo-{{ item.id }}">
+            <div>
+                <div class="todo-details">
+                    <p> Tên công việc:</p><input type="text" id="todo-name-{{ item.id }}" value="{{ item.name }}" disabled required>
+                    <p> Giờ hoàn thiện: </p><input type="datetime-local" id="todo-date-{{ item.id }}" value="{{ item.date }}" disabled required>
+                    <p> Mô tả: </p><input type="text" id="todo-description-{{ item.id }}" value="{{ item.description }}" disabled required>
+                </div>
+                <div class="actions_todo">
+                    <form action="{{ url_for('toggle_todo', todo_id=item.id) }}" method="GET">
+                        <label>
+                            <input type="checkbox" {% if item.checked %}checked{% endif %} class="checkbox"  onclick="toggleComplete({{ item.id }}, this.checked)">
+                        </label>
+                    </form>
+                    <form action="{{ url_for('delete_todo', todo_id=item.id) }}" method="GET">
+                        <button type="submit" class="delete-button">Delete</button>
+                    </form>
+                    <button type="button" onclick="editTodo({{ item.id }})" class="edit-button">Edit</button>
+                    <button type="button" onclick="cancelEdit({{ item.id }})" class="cancel-button" style="display: none;">Cancel</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% if items|length == 0 %}
+            <p class="no-items">No items found.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
